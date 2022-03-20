@@ -12,6 +12,14 @@
  *******************************************************************************/
 package org.jacoco.cli.internal.commands;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
 import org.jacoco.cli.internal.Command;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.analysis.CoverageBuilder;
@@ -19,32 +27,27 @@ import org.jacoco.core.analysis.IBundleCoverage;
 import org.jacoco.core.analysis.IClassCoverage;
 import org.jacoco.core.data.ExecutionDataStore;
 import org.jacoco.core.tools.ExecFileLoader;
-import org.jacoco.report.*;
+import org.jacoco.report.DirectorySourceFileLocator;
+import org.jacoco.report.FileMultiReportOutput;
+import org.jacoco.report.IReportVisitor;
+import org.jacoco.report.ISourceFileLocator;
+import org.jacoco.report.MultiReportVisitor;
+import org.jacoco.report.MultiSourceFileLocator;
 import org.jacoco.report.csv.CSVFormatter;
 import org.jacoco.report.html.HTMLFormatter;
 import org.jacoco.report.xml.XMLFormatter;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 /**
  * The <code>report</code> command.
  */
-public class Report extends Command {
+public class Report1 extends Command {
 
 	@Argument(usage = "list of JaCoCo *.exec files to read", metaVar = "<execfiles>")
 	List<File> execfiles = new ArrayList<File>();
 
-//	@Option(name = "--classfiles", usage = "location of Java class files", metaVar = "<path>", required = true)
-	@Option(name = "--classfiles", usage = "location of Java class files", metaVar = "<path>")
+	@Option(name = "--classfiles", usage = "location of Java class files", metaVar = "<path>", required = true)
 	List<File> classfiles = new ArrayList<File>();
 
 	@Option(name = "--sourcefiles", usage = "location of the source files", metaVar = "<path>")
@@ -67,21 +70,6 @@ public class Report extends Command {
 
 	@Option(name = "--html", usage = "output directory for the HTML report", metaVar = "<dir>")
 	File html;
-
-	@Option(name = "--projectPath", usage = "projectPath used for git local repository", metaVar = "<string>")
-	String projectPath;
-
-	@Option(name = "--revision", usage = "projectPath used for git local repository", metaVar = "<string>")
-	String revision;
-
-	@Option(name = "--baseRevision", usage = "git baseRevision used for calculate diff", metaVar = "<string>")
-	String baseRevision;
-
-	@Option(name = "--excludes", usage = "coverage exclusion", metaVar = "<string>")
-	String excludes;
-
-	@Option(name = "--includes", usage = "coverage includes", metaVar = "<string>")
-	String includes;
 
 	@Override
 	public String description() {
@@ -113,76 +101,15 @@ public class Report extends Command {
 		return loader;
 	}
 
-	private List<File> getClassfileListByFilter() throws IOException{
-
-		List<File> result=new ArrayList<>();
-		List<String> incluesList = new ArrayList<>();
-		List<String> excluesList = new ArrayList<>();
-		if(includes !=null){
-			if(!includes.trim().isEmpty()){
-				incluesList = new ArrayList<>(Arrays.asList(includes.split(",")));
-			}
-		}
-		if(excludes !=null){
-			if(!excludes.trim().isEmpty()){
-				excluesList = new ArrayList<>(Arrays.asList(excludes.split(",")));
-			}
-		}
-		List<File> classesDirList = new ArrayList<>();
-		if(classfiles.isEmpty()){
-			classesDirList.add(new File(projectPath));
-		}else{
-			classesDirList.addAll(classfiles);
-		}
-		for (final File projectDir : classesDirList){
-			if (projectDir.isDirectory()) {
-				final FileFilter filter = new FileFilter(incluesList, excluesList);
-				for (final File f : filter.getFiles(projectDir)) {
-					if(f.isFile() && f.getName().endsWith(".class") && f.getParent().contains("/target/classes")){
-						result.add(f);
-					}
-				}
-			}
-		}
-		return result;
-	}
-
-	private CoverageBuilder getCoverageBuilder(){
-		if(projectPath !=null && revision !=null && baseRevision !=null ){
-			return new CoverageBuilder(projectPath,revision,baseRevision,true);
-		}else{
-			return new CoverageBuilder();
-		}
-	}
-
 	private IBundleCoverage analyze(final ExecutionDataStore data,
 									final PrintWriter out) throws IOException {
-
-		final CoverageBuilder coverageBuilder = getCoverageBuilder();
-		final Analyzer analyzer = new Analyzer(data, coverageBuilder);
-		List<File> classesFileList = getClassfileListByFilter();
-		for (final File f : classesFileList) {
-			analyzer.analyzeAll(f);
-		}
-		printNoMatchWarning(coverageBuilder.getNoMatchClasses(), out);
-		return coverageBuilder.getBundle(name);
-	}
-
-	// analyze方法的备份
-	private IBundleCoverage analyze1(final ExecutionDataStore data,
-									final PrintWriter out) throws IOException {
-		CoverageBuilder coverageBuilder = null;
-		if(projectPath !=null && revision !=null && baseRevision !=null){
-			coverageBuilder = new CoverageBuilder(projectPath,revision,baseRevision,true);
-		}else{
-			coverageBuilder = new CoverageBuilder();
-		}
-		final Analyzer analyzer = new Analyzer(data, coverageBuilder);
+		final CoverageBuilder builder = new CoverageBuilder();
+		final Analyzer analyzer = new Analyzer(data, builder);
 		for (final File f : classfiles) {
 			analyzer.analyzeAll(f);
 		}
-		printNoMatchWarning(coverageBuilder.getNoMatchClasses(), out);
-		return coverageBuilder.getBundle(name);
+		printNoMatchWarning(builder.getNoMatchClasses(), out);
+		return builder.getBundle(name);
 	}
 
 	private void printNoMatchWarning(final Collection<IClassCoverage> nomatch,

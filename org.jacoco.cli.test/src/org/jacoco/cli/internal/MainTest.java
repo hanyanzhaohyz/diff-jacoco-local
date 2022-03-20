@@ -77,4 +77,37 @@ public class MainTest extends CommandTestBase {
 		assertNoOutput(err);
 	}
 
+	@Test
+	public void test_version() throws Exception {
+		execute("version","--help");
+		System.out.println(out);
+		System.out.println(err);
+	}
+
+	@Test
+	public void test_report() throws Exception {
+		execute("report","/Users/han/git_repo/smartunitmng/jacoco.exec","--classfiles", "/Users/han/git_repo/smartunitmng/app/service/target/classes", "--html", "/Users/han/git_repo/smartunitmng/report");
+		System.out.println(out);
+		System.out.println(err);
+	}
+
+	@Test
+	public void test_report_diff() throws Exception {
+		execute("report","/Users/han/git_repo/smartunitmng/jacoco.exec",
+				"--classfiles","/Users/han/git_repo/smartunitmng/app/service/target/classes",
+				"--classfiles","/Users/han/git_repo/smartunitmng/app/model/target/classes",
+				"--sourcefiles","/Users/han/git_repo/smartunitmng/app/utils/src/main/java",
+				"--sourcefiles","/Users/han/git_repo/smartunitmng/app/service/src/main/java",
+				"--sourcefiles","/Users/han/git_repo/smartunitmng/app/web/src/main/java",
+				"--projectPath" , "/Users/han/git_repo/smartunitmng",
+//				"--revision", "8baaa4becbb185272c79c39e2684d5477242fdae",
+//				"--baseRevision" , "b01e9c1631316b518b33c6735836e0045a536071",
+				"--html", "/Users/han/git_repo/smartunitmng/report",
+				"--xml","report.xml",
+				"--excludes","**/test/**,**/dal/**,**/ibatis/**,**/mybatis/**,**/model/**,**/enums/**,**/enum/**,**/log/**,**/constants/**,**/vo/**,**/*Controller*",
+				"--csv","report.csv");
+		System.out.println(out);
+		System.out.println(err);
+	}
+
 }

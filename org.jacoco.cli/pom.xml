@@ -37,6 +37,18 @@
       <groupId>args4j</groupId>
       <artifactId>args4j</artifactId>
     </dependency>
+      <dependency>
+          <groupId>commons-collections</groupId>
+          <artifactId>commons-collections</artifactId>
+          <version>3.2.2</version>
+          <scope>compile</scope>
+      </dependency>
+    <dependency>
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-utils</artifactId>
+      <version>3.0.22</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -123,6 +135,14 @@
           </execution>
         </executions>
       </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <source>7</source>
+                <target>7</target>
+            </configuration>
+        </plugin>
     </plugins>
   </build>
 </project>

@@ -56,6 +56,35 @@ public class CodeDiff {
         return diffMethods(gitPath, newBranchName, oldBranchName);
     }
 
+    /**
+     * 两个commitId之间的比较
+     * @param gitPath           git路径
+     * @param revision     新的commitId
+     * @param baseRevision    待对比的commitId
+     * @return
+     */
+    public static List<ClassInfo> diff2CommitId(String gitPath, String revision, String baseRevision) {
+        try {
+            //  获取本地分支
+            GitAdapter gitAdapter = new GitAdapter(gitPath);
+            Git git = gitAdapter.getGit();
+            //  获取分支信息
+            AbstractTreeIterator newTreeParser = gitAdapter.prepareTreeParserForCommitId(revision);
+            AbstractTreeIterator oldTreeParser = gitAdapter.prepareTreeParserForCommitId(baseRevision);
+            //  对比差异
+            List<DiffEntry> diffs = git.diff().setOldTree(oldTreeParser).setNewTree(newTreeParser).setShowNameAndStatusOnly(true).call();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DiffFormatter df = new DiffFormatter(out);
+            //设置比较器为忽略空白字符对比（Ignores all whitespace）
+            df.setDiffComparator(RawTextComparator.WS_IGNORE_ALL);
+            df.setRepository(git.getRepository());
+            return batchPrepareDiffMethodForCommitId(gitAdapter, revision, baseRevision, df, diffs);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<>();
+    }
+
     private static List<ClassInfo> diffMethods(String gitPath, String newBranchName, String oldBranchName) {
         try {
             //  获取本地分支
@@ -64,8 +93,8 @@ public class CodeDiff {
             Ref localBranchRef = gitAdapter.getRepository().exactRef(REF_HEADS + newBranchName);
             Ref localMasterRef = gitAdapter.getRepository().exactRef(REF_HEADS + oldBranchName);
             //  更新本地分支
-            gitAdapter.checkOutAndPull(localMasterRef, oldBranchName);
-            gitAdapter.checkOutAndPull(localBranchRef, newBranchName);
+//            gitAdapter.checkOutAndPull(localMasterRef, oldBranchName);
+//            gitAdapter.checkOutAndPull(localBranchRef, newBranchName);
             //  获取分支信息
             AbstractTreeIterator newTreeParser = gitAdapter.prepareTreeParser(localBranchRef);
             AbstractTreeIterator oldTreeParser = gitAdapter.prepareTreeParser(localMasterRef);
@@ -258,6 +287,100 @@ public class CodeDiff {
                 addLines.add(new int[]{edit.getBeginB(), edit.getEndB()});
             }
         }
+    }
+
+    /**
+     * 多线程执行对比
+     * @return
+     */
+    private static List<ClassInfo> batchPrepareDiffMethodForCommitId(final GitAdapter gitAdapter, final String revision, final String baseRevision, final DiffFormatter df, List<DiffEntry> diffs) {
+        int threadSize = 100;
+        int dataSize = diffs.size();
+        int threadNum = dataSize / threadSize + 1;
+        boolean special = dataSize % threadSize == 0;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadNum);
+
+        List<Callable<List<ClassInfo>>> tasks = new ArrayList<Callable<List<ClassInfo>>>();
+        Callable<List<ClassInfo>> task;
+        List<DiffEntry> cutList;
+        //  分解每条线程的数据
+        for (int i = 0; i < threadNum; i++) {
+            if (i == threadNum - 1) {
+                if (special) {
+                    break;
+                }
+                cutList = diffs.subList(threadSize * i, dataSize);
+            } else {
+                cutList = diffs.subList(threadSize * i, threadSize * (i + 1));
+            }
+            final List<DiffEntry> diffEntryList = cutList;
+            task = () -> {
+                List<ClassInfo> allList = new ArrayList<>();
+                for (DiffEntry diffEntry : diffEntryList) {
+                    ClassInfo classInfo = prepareDiffMethodForCommitId(gitAdapter, revision, baseRevision, df, diffEntry);
+                    if (classInfo != null) {
+                        allList.add(classInfo);
+                    }
+                }
+                return allList;
+            };
+            // 这里提交的任务容器列表和返回的Future列表存在顺序对应的关系
+            tasks.add(task);
+        }
+        List<ClassInfo> allClassInfoList = new ArrayList<ClassInfo>();
+        fillClassList(executorService, tasks, allClassInfoList);
+        return allClassInfoList;
+    }
+
+    /**
+     * 单个差异文件对比
+     * @param gitAdapter
+     * @param revision
+     * @param baseRevision
+     * @param df
+     * @param diffEntry
+     * @return
+     */
+    private synchronized static ClassInfo prepareDiffMethodForCommitId(GitAdapter gitAdapter, String revision, String baseRevision, DiffFormatter df, DiffEntry diffEntry) {
+        List<MethodInfo> methodInfoList = new ArrayList<>();
+        try {
+            String newJavaPath = diffEntry.getNewPath();
+            //  排除测试类
+            if (newJavaPath.contains("/src/test/java/")) {
+                return null;
+            }
+            //  非java文件 和 删除类型不记录
+            if (!newJavaPath.endsWith(".java") || diffEntry.getChangeType() == DiffEntry.ChangeType.DELETE) {
+                return null;
+            }
+            String newClassContent = gitAdapter.getCommmitSpecificFileContent(revision, newJavaPath);
+            ASTGenerator newAstGenerator = new ASTGenerator(newClassContent);
+            /*  新增类型   */
+            if (diffEntry.getChangeType() == DiffEntry.ChangeType.ADD) {
+                return newAstGenerator.getClassInfo();
+            }
+            /*  修改类型  */
+            //  获取文件差异位置，从而统计差异的行数，如增加行数，减少行数
+            FileHeader fileHeader = df.toFileHeader(diffEntry);
+            List<int[]> addLines = new ArrayList<>();
+            List<int[]> delLines = new ArrayList<>();
+            EditList editList = fileHeader.toEditList();
+            fillEditLines(addLines, delLines, editList);
+            String oldJavaPath = diffEntry.getOldPath();
+            String oldClassContent = gitAdapter.getCommmitSpecificFileContent(baseRevision, oldJavaPath);
+            ASTGenerator oldAstGenerator = new ASTGenerator(oldClassContent);
+            MethodDeclaration[] newMethods = newAstGenerator.getMethods();
+            MethodDeclaration[] oldMethods = oldAstGenerator.getMethods();
+            Map<String, MethodDeclaration> methodsMap = new HashMap<String, MethodDeclaration>();
+            for (int i = 0; i < oldMethods.length; i++) {
+                methodsMap.put(oldMethods[i].getName().toString() + oldMethods[i].parameters().toString(), oldMethods[i]);
+            }
+            fillMethodInfos(methodInfoList, newAstGenerator, newMethods, methodsMap);
+            return newAstGenerator.getClassInfo(methodInfoList, addLines, delLines);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**

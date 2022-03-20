@@ -34,7 +34,7 @@ public class GitAdapter {
     private Repository repository;
     private String gitFilePath;
 
-    //  Git授权
+    //  Git授权，本地git仓库请忽略
     private static UsernamePasswordCredentialsProvider usernamePasswordCredentialsProvider;
 
     public GitAdapter(String gitFilePath) {
@@ -89,6 +89,20 @@ public class GitAdapter {
     }
 
     /**
+     * 获取指定commitId的指定文件内容
+     * @param commitId          commitId
+     * @param javaPath          文件路径
+     * @return  java类
+     * @throws IOException
+     */
+    public String getCommmitSpecificFileContent(String commitId, String javaPath) throws IOException {
+        ObjectId objId = repository.resolve(commitId);
+        RevWalk walk = new RevWalk(repository);
+        RevTree tree = walk.parseTree(objId);
+        return  getFileContent(javaPath,tree,walk);
+    }
+
+    /**
      * 获取指定分支指定Tag版本的指定文件内容
      * @param tagRevision       Tag版本
      * @param javaPath          件路径
@@ -136,6 +150,25 @@ public class GitAdapter {
         walk.dispose();
         return treeParser;
     }
+
+    /**
+     * 分析分支树结构信息
+     * @param commitId      commitId
+     * @return
+     * @throws IOException
+     */
+    public AbstractTreeIterator prepareTreeParserForCommitId(String commitId) throws IOException {
+        RevWalk walk = new RevWalk(repository);
+        ObjectId objectId=repository.resolve(commitId);
+        RevCommit commit = walk.parseCommit(objectId);
+        RevTree tree = walk.parseTree(commit.getTree().getId());
+        CanonicalTreeParser treeParser = new CanonicalTreeParser();
+        ObjectReader reader = repository.newObjectReader();
+        treeParser.reset(reader, tree.getId());
+        walk.dispose();
+        return treeParser;
+    }
+
     /**
      * 切换分支
      * @param branchName    分支名称

@@ -19,18 +19,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.jacoco.core.dao.CoverageRateRecordDao;
-import org.jacoco.core.dao.CoverageRecordDao;
 import org.jacoco.core.data.MethodCoverPair;
 import org.jacoco.core.internal.analysis.BundleCoverageImpl;
 import org.jacoco.core.internal.analysis.SourceFileCoverageImpl;
 import org.jacoco.core.internal.diff.ClassInfo;
 import org.jacoco.core.internal.diff.CodeDiff;
 import org.jacoco.core.internal.diff.MethodInfo;
-import org.jfaster.mango.operator.Mango;
-
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 
 /**
  * Builder for hierarchical {@link ICoverageNode} structures from single
@@ -56,33 +50,34 @@ public class CoverageBuilder implements ICoverageVisitor {
 
     public static Map<String, ClassInfo> classInfos;
 
-    public static volatile CoverageRecordDao coverageRecordDao;
-    public static volatile CoverageRateRecordDao coverageRateRecordDao;
+//    public static volatile CoverageRecordDao coverageRecordDao;
+//    public static volatile CoverageRateRecordDao coverageRateRecordDao;
 
-    public static String project;
+//    public static String project;
 
-    public static void init(String mysqlJdbcUrl, String userName, String password, String title) {
-        if (coverageRecordDao == null) {
-            synchronized (CoverageBuilder.class) {
-                if (coverageRecordDao == null) {
-                    HikariConfig config = new HikariConfig();
-                    config.setDriverClassName("com.mysql.jdbc.Driver");
-                    /*config.setJdbcUrl("jdbc:mysql://127.0.0.1:3306/store?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF-8");*/
-                    config.setJdbcUrl(mysqlJdbcUrl);
-                    config.setMaximumPoolSize(10);
-                    config.setMinimumIdle(5);
-                    config.setUsername(userName);
-                    config.setPassword(password);
-                    config.setConnectionTimeout(3000);
-                    config.setPoolName("JacocoCoverage");
-                    Mango mango = Mango.newInstance(new HikariDataSource(config));
-                    coverageRecordDao = mango.create(CoverageRecordDao.class);
-                    coverageRateRecordDao = mango.create(CoverageRateRecordDao.class);
-                    project = title;
-                }
-            }
-        }
-    }
+    // cli包里无需调这个方法
+//    public static void init(String mysqlJdbcUrl, String userName, String password, String title) {
+//        if (coverageRecordDao == null) {
+//            synchronized (CoverageBuilder.class) {
+//                if (coverageRecordDao == null) {
+//                    HikariConfig config = new HikariConfig();
+//                    config.setDriverClassName("com.mysql.jdbc.Driver");
+//                    /*config.setJdbcUrl("jdbc:mysql://127.0.0.1:3306/store?autoReconnect=true&amp;useUnicode=true&amp;characterEncoding=UTF-8");*/
+//                    config.setJdbcUrl(mysqlJdbcUrl);
+//                    config.setMaximumPoolSize(10);
+//                    config.setMinimumIdle(5);
+//                    config.setUsername(userName);
+//                    config.setPassword(password);
+//                    config.setConnectionTimeout(3000);
+//                    config.setPoolName("JacocoCoverage");
+//                    Mango mango = Mango.newInstance(new HikariDataSource(config));
+//                    coverageRecordDao = mango.create(CoverageRecordDao.class);
+//                    coverageRateRecordDao = mango.create(CoverageRateRecordDao.class);
+//                    project = title;
+//                }
+//            }
+//        }
+//    }
 
     /**
      * Create a new builder.
@@ -106,6 +101,20 @@ public class CoverageBuilder implements ICoverageVisitor {
         packages = new HashMap<>();
         classInfos = converToMap(CodeDiff.diffBranchToBranch(gitPath, branchName, CodeDiff.MASTER));
 
+    }
+
+    /**
+     * compare new  branch withe master branch
+     * @param gitPath local gitPath
+     * @param diff2Commit 仅仅用来标识这个构造函数，以免和其他构造函数冲突
+     */
+    public CoverageBuilder(String gitPath, String revision,String baseRevision,boolean diff2Commit) {
+        if(diff2Commit){
+            classes = new HashMap<>();
+            sourcefiles = new HashMap<>();
+            packages = new HashMap<>();
+            classInfos = converToMap(CodeDiff.diff2CommitId(gitPath, revision, baseRevision));
+        }
     }
 
     private Map<String, ClassInfo> converToMap(List<ClassInfo> classInfos) {
@@ -138,7 +147,6 @@ public class CoverageBuilder implements ICoverageVisitor {
         sourcefiles = new HashMap<>();
         packages = new HashMap<>();
         classInfos = converToMap(CodeDiff.diffTagToTag(gitPath, branchName, newTag, oldTag));
-
     }
 
     /**

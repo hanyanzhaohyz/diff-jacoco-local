@@ -91,7 +91,7 @@
     <module>../org.jacoco.agent</module>
     <module>../org.jacoco.ant</module>
     <module>../org.jacoco.cli</module>
-    <module>../org.jacoco.startup</module>
+<!--    <module>../org.jacoco.startup</module>-->
     <module>../jacoco-maven-plugin</module>
     <module>../org.jacoco.tests</module>
     <module>../jacoco</module>

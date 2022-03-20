@@ -85,15 +85,15 @@ final class SourceHighlighter {
         classPath = classPath.replaceAll("/", ".");
         String line;
         int nr = 0;
-        Set<String> hasRecord = new HashSet<>();
+//        Set<String> hasRecord = new HashSet<>();
         while ((line = lineBuffer.readLine()) != null) {
             nr++;
-            renderCodeLine(pre, line, source.getLine(nr), nr, classPath, hasRecord);
+            renderCodeLine(pre, line, source.getLine(nr), nr, classPath);
         }
     }
 
     private void renderCodeLine(final HTMLElement pre, final String linesrc,
-            final ILine line, final int lineNr, final String classPath, Set<String> hasRecord) throws IOException {
+            final ILine line, final int lineNr, final String classPath) throws IOException {
         if (CoverageBuilder.classInfos == null || CoverageBuilder.classInfos.isEmpty()) {
             //	全量覆盖
             highlight(pre, line, lineNr, null).text(linesrc);
@@ -126,74 +126,75 @@ final class SourceHighlighter {
                             highlight(pre, line, lineNr, null).text(" " + linesrc);
                             pre.text("\n");
                         }
-                        String type;
-                        if (pair != null && pair.getCoverageRate() > 0 && (type = getType(line)) != null) {
-                            CoverageDto dto = new CoverageDto(CoverageBuilder.project,
-                                    classPath,
-                                    pair.getMethodName(),
-                                    linesrc,
-                                    pair.getMd5(),
-                                    MD5Encode(linesrc), type);
-                            String uniqueKey = classPath + "_" + pair.getMethodName();
-                            if (!hasRecord.contains(uniqueKey)) {
-                                CoverageRateDto rateDto = new CoverageRateDto(CoverageBuilder.project,
-                                        classPath,
-                                        pair.getMethodName(), pair.getMethodCovered());
-                                try {
-                                    CoverageBuilder.coverageRateRecordDao.addOrUpdate(rateDto);
-                                    hasRecord.add(uniqueKey);
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                            try {
-                                CoverageBuilder.coverageRecordDao.addOrUpdate(dto);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    } else {
-                        String type = CoverageBuilder.coverageRecordDao.getType(CoverageBuilder.project,
-                                classPath, pair.getMd5(), MD5Encode(linesrc));
-                        if (type == null) { //如果不存在，有可能方法修改了，需要删除以前的记录
-                            String uniqueKey = classPath + "_" + pair.getMethodName();
-                            if (!hasRecord.contains(uniqueKey)) {
-                                CoverageBuilder.coverageRecordDao.deletePreRecord(
-                                        CoverageBuilder.project, classPath, pair.getMethodName());
-                                CoverageBuilder.coverageRateRecordDao.deletePreRateRecord
-                                        (CoverageBuilder.project, classPath, pair.getMethodName());
-                                hasRecord.add(uniqueKey);
-                            }
-                        } else {
-                            //修改覆盖率。
-                            String uniqueKey = classPath + "_" + pair.getMethodName();
-                            if (!hasRecord.contains(uniqueKey)) {
-                                Integer covered = CoverageBuilder.coverageRateRecordDao.getCovered(
-                                        CoverageBuilder.project, classPath, pair.getMethodName());
-                                if (covered != null) {
-                                    pair.updateCoverCounter(covered);
-                                }
-                                hasRecord.add(uniqueKey);
-                            }
-
-                        }
-                        boolean flag = false;
-                        List<int[]> addLines = classInfo.getAddLines();
-                        for (int[] ints : addLines) {
-                            if (ints[0] <= lineNr && lineNr <= ints[1]) {
-                                flag = true;
-                                break;
-                            }
-                        }
-                        if (flag) {
-                            highlight(pre, line, lineNr, type).text("+ " + linesrc);
-                            pre.text("\n");
-                        } else {
-                            highlight(pre, line, lineNr, type).text(" " + linesrc);
-                            pre.text("\n");
-                        }
-
+//                        String type;
+//                        if (pair != null && pair.getCoverageRate() > 0 && (type = getType(line)) != null) {
+//                            CoverageDto dto = new CoverageDto(CoverageBuilder.project,
+//                                    classPath,
+//                                    pair.getMethodName(),
+//                                    linesrc,
+//                                    pair.getMd5(),
+//                                    MD5Encode(linesrc), type);
+//                            String uniqueKey = classPath + "_" + pair.getMethodName();
+//                            if (!hasRecord.contains(uniqueKey)) {
+//                                CoverageRateDto rateDto = new CoverageRateDto(CoverageBuilder.project,
+//                                        classPath,
+//                                        pair.getMethodName(), pair.getMethodCovered());
+//                                try {
+//                                    CoverageBuilder.coverageRateRecordDao.addOrUpdate(rateDto);
+//                                    hasRecord.add(uniqueKey);
+//                                } catch (Exception e) {
+//                                    e.printStackTrace();
+//                                }
+//                            }
+//                            try {
+//                                CoverageBuilder.coverageRecordDao.addOrUpdate(dto);
+//                            } catch (Exception e) {
+//                                e.printStackTrace();
+//                            }
+//                        }
                     }
+//                    else {
+//                        String type = CoverageBuilder.coverageRecordDao.getType(CoverageBuilder.project,
+//                                classPath, pair.getMd5(), MD5Encode(linesrc));
+//                        if (type == null) { //如果不存在，有可能方法修改了，需要删除以前的记录
+//                            String uniqueKey = classPath + "_" + pair.getMethodName();
+//                            if (!hasRecord.contains(uniqueKey)) {
+//                                CoverageBuilder.coverageRecordDao.deletePreRecord(
+//                                        CoverageBuilder.project, classPath, pair.getMethodName());
+//                                CoverageBuilder.coverageRateRecordDao.deletePreRateRecord
+//                                        (CoverageBuilder.project, classPath, pair.getMethodName());
+//                                hasRecord.add(uniqueKey);
+//                            }
+//                        } else {
+//                            //修改覆盖率。
+//                            String uniqueKey = classPath + "_" + pair.getMethodName();
+//                            if (!hasRecord.contains(uniqueKey)) {
+//                                Integer covered = CoverageBuilder.coverageRateRecordDao.getCovered(
+//                                        CoverageBuilder.project, classPath, pair.getMethodName());
+//                                if (covered != null) {
+//                                    pair.updateCoverCounter(covered);
+//                                }
+//                                hasRecord.add(uniqueKey);
+//                            }
+//
+//                        }
+//                        boolean flag = false;
+//                        List<int[]> addLines = classInfo.getAddLines();
+//                        for (int[] ints : addLines) {
+//                            if (ints[0] <= lineNr && lineNr <= ints[1]) {
+//                                flag = true;
+//                                break;
+//                            }
+//                        }
+//                        if (flag) {
+//                            highlight(pre, line, lineNr, type).text("+ " + linesrc);
+//                            pre.text("\n");
+//                        } else {
+//                            highlight(pre, line, lineNr, type).text(" " + linesrc);
+//                            pre.text("\n");
+//                        }
+//
+//                    }
                 }
                 existFlag = false;
             }
@@ -203,6 +204,8 @@ final class SourceHighlighter {
             }
         }
     }
+
+
 
     HTMLElement highlight(final HTMLElement pre, final ILine line,
             final int lineNr, String preType) throws IOException {
