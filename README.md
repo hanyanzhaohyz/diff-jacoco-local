@@ -26,18 +26,18 @@ JaCoCo二次开发基于Git分支差分实现增量代码覆盖率。本仓库�
 5. jacococli支持不输入--classfiles参数，通过excludes来代替，即将覆盖率排除项后移到goal:report阶段，生成jacoco.exec阶段时可不填写覆盖率排除项
 
 ## 使用方法
-####1. 打包
-   mvn clean package  -Dmaven.javadoc.test=true -Dmaven.test.skip=true
-####2. 获取jacococli的jar包
+#### 1. 打包
+mvn clean package  -Dmaven.javadoc.test=true -Dmaven.test.skip=true
+#### 2. 获取jacococli的jar包
 **/diff-jacoco/jacoco/target/jacoco-0.8.4.202202160912/lib/jacococli.jar
-####3. 删除jar包一些授权信息，不然无法执行
+#### 3. 删除jar包一些授权信息，不然无法执行
 zip -d /Users/han/git_repo/diff-jacoco/jacoco/target/jacoco-0.8.4.202202211159/lib/jacococli.jar 'META-INF/.SF' 'META-INF/.RSA' 'META-INF/*SF'
-####4. 通过正常的途径获取jacoco.exec文件，可以用mvn插件，也可以通过on-the-fly模式
+#### 4. 通过正常的途径获取jacoco.exec文件，可以用mvn插件，也可以通过on-the-fly模式
 参考官网：https://www.jacoco.org/jacoco/trunk/doc/agent.html
-####4. 计算增量覆盖率
+#### 5. 计算增量覆盖率
 java -jar jacococli.jar report jacoco.exec --projectPath /your_project_path --revision d6b2a0124f3998fca6416679e61ebbf7088e5d03 --baseRevision b01e9c1631316b518b33c6735836e0045a536071 --excludes "**/test/**,**/model/**" --sourcefiles /Users/han/git_repo/smartunitmng/app/service/src/main/java  --html report --xml report.xml
 
-##适用场景&优势
+## 适用场景
  1. 持续集成CI场景，在流水线脚本中定制化计算变更覆盖率
  2. 与生成jacoco.exec阶段（goal:pre-agent）解耦，基于一份全量的jacoco.exec数据，生成多份定制化覆盖率数据
  3. 数据保存本地文件，无需mysql等数据库，轻量，使用方便
